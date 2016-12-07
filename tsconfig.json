@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "outDir": "./bin",
+    "removeComments": true
+  },
+  "files": [
+    "./test/xor.ts"
+  ]
+}
