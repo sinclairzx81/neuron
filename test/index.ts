@@ -12,19 +12,18 @@ import * as neuron from "../src/index"
 //     0      <--- output layer
 //
 //------------------------------------------------------
-
 const network = new neuron.Trainer(new neuron.Network([
   new neuron.Tensor(2, 1.0),
-  new neuron.Tensor(6, 1.0, neuron.activate.tanh),
-  new neuron.Tensor(6, 1.0, neuron.activate.tanh),
-  new neuron.Tensor(1, 1.0, neuron.activate.tanh)
+  new neuron.Tensor(5, 1.0, neuron.activate.tanh),
+  new neuron.Tensor(3, 1.0, neuron.activate.tanh),
+  new neuron.Tensor(1, 1.0, neuron.activate.tanh),
 ]))
 
 //------------------------------------------------------
 // train the network and report every 10,000 iterations.
 //------------------------------------------------------
 let iteration = 0
-while(iteration < 10000000) { // 10,000,000 iterations.
+while(iteration < 100000000) { // 100,000,000 iterations.
 
   // train network against xor truth table.
   network.backward([0, 0], [0])

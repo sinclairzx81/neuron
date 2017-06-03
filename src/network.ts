@@ -71,7 +71,6 @@ export class Network {
   public matrices: Array<Matrix>
   public kernels : Array<Kernel>
   private output : Array<number>
-
   /**
    * creates a new network with the given tensor layers.
    * @param {Tensor[]} tensors the tensors for each layer in the network.
@@ -83,7 +82,7 @@ export class Network {
     // initialize network matrices.
     this.matrices = new Array<Matrix>(this.tensors.length - 1)
     for (let i = 0; i < this.tensors.length - 1; i++) {
-      this.matrices[i] = new Matrix(
+      this.matrices[i] = new Matrix (
         this.tensors[i + 0].data.length,
         this.tensors[i + 1].data.length - 1
       )
@@ -114,7 +113,6 @@ export class Network {
   public inputs(): number {
     return (this.tensors[0].data.length - 1)
   }
-
   /**
    * returns the number of outputs from this network.
    * @returns {number}
@@ -122,7 +120,6 @@ export class Network {
   public outputs(): number {
     return (this.tensors[this.tensors.length - 1].data.length - 1)
   }
-
   /**
    * executes this network, propagating input to output.
    * @param {Array<number>} input the input buffer to write to the network.

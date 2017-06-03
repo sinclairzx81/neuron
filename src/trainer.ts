@@ -29,30 +29,22 @@ THE SOFTWARE.
 import { Tensor }  from "./tensor"
 import { Matrix }  from "./matrix"
 import { Network } from "./network"
+import { Random }  from "./random"
 
-/**
- * creates a sampling range function for initializing weights. The min and max
- * should be the same value (with min negated), to achieve a zero sum distribution. 
- * This seems to yield slightly better results during gradient descent 
- * @param {number} resolution the resolution (should be set to the input length)
- * @param {number} min the min value (-0.5 is good.)
- * @param {number} max the max value ( 0.5 is good.)
- * @returns {Function}
- */
-const sampler = (resolution: number, min: number, max: number) => {
-  const w = max - min
-  const d = w / (resolution - 1)
-  switch(resolution) {
-    case 0:  throw new Error("0 sampler resolution not allowed.")
-    case 1:  return (offset) => min + ((max - min) / 2)
-    default: return (offset) => min + (d * offset)
-  }
-}
 
-export interface Kernel {
+interface Kernel {
   input : { tensor: Tensor, grads:  Float64Array },
   output: { tensor: Tensor, grads:  Float64Array },
   matrix: { matrix: Matrix, deltas: Matrix}
+}
+
+export interface TrainingOptions {
+  /** init seed value (defaults to 0) */
+  seed?    : number
+  /** network step (defaults to 0.15) */
+  step?    : number
+  /** network momentum (defaults to 0.5) */
+  momentum?: number
 }
 /**
  * A network trainer that uses classic back propagation / gradient descent to 
@@ -60,10 +52,10 @@ export interface Kernel {
  * convenience.
  */
 export class Trainer {
+  private random   : Random
   private gradients: Array<Float64Array>
   private deltas   : Array<Matrix>
   private kernels  : Array<Kernel>
-
   /**
    * creates a new trainer.
    * @param {Network} network the network to train.
@@ -71,7 +63,16 @@ export class Trainer {
    * @param {number} momentum the network momenum (defaults to 0.5)
    * @returns {Trainer}
    */
-  constructor(public network: Network, private step: number = 0.15, private momentum: number = 0.5) {
+  constructor(public network: Network, public options? : TrainingOptions) {
+    // initialize training options.
+    this.options          = this.options || {}
+    this.options.seed     = this.options.seed || 0
+    this.options.step     = this.options.step || 0.15
+    this.options.momentum = this.options.momentum || 0.5
+
+    // initialize random.
+    this.random = new Random(this.options.seed)
+
     // initialize matrix deltas
     this.deltas = new Array<Matrix>(this.network.matrices.length)
     for (let i = 0; i < this.network.matrices.length; i++) {
@@ -85,12 +86,13 @@ export class Trainer {
     for (let i = 0; i < this.network.tensors.length; i++) {
       this.gradients[i] = new Float64Array(this.network.tensors[i].data.length)
     }
-    // setup weight distribution
+    // setup weight distribution (guassian)
     for (let m = 0; m < this.network.matrices.length; m++) {
-      const sample = sampler(this.network.matrices[m].inputs, -0.5, 0.5)
       for (let o = 0; o < this.network.matrices[m].outputs; o++) {
         for (let i = 0; i < this.network.matrices[m].inputs; i++) {
-          this.network.matrices[m].set(i, o, sample(i))
+          const rand = (this.random.next() - 0.5) * (1 / Math.sqrt(this.network.matrices[m].inputs))
+          //const xavier = (Math.random() - 0.5) * (1/Math.sqrt(this.network.matrices[m].inputs * this.network.matrices[m].outputs))
+          this.network.matrices[m].set(i, o, rand)
         }
       }
     }
@@ -168,7 +170,7 @@ export class Trainer {
       for (let i = 0; i < kernel.matrix.matrix.inputs; i++) {
         for (let o = 0; o < kernel.matrix.matrix.outputs; o++) {  
           const old_delta  = kernel.matrix.deltas.get(i, o)
-          const new_delta  = (this.step * kernel.input.tensor.data[i] * kernel.output.grads[o]) + (this.momentum * old_delta)
+          const new_delta  = (this.options.step * kernel.input.tensor.data[i] * kernel.output.grads[o]) + (this.options.momentum * old_delta)
           const new_weight = kernel.matrix.matrix.get(i, o) + new_delta
           kernel.matrix.matrix.set(i, o, new_weight)
           kernel.matrix.deltas.set (i, o, new_delta)
