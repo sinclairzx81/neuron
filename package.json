@@ -1,0 +1,21 @@
+{
+  "name": "neuron",
+  "version": "1.0.0",
+  "description": "neural network written in javascript",
+  "main": "bin/index.js",
+  "scripts": {
+    "test"      : "tsc-bundle ./test/index.ts ./bin/test.js --removeComments && node bin/test.js",
+    "clean"     : "rm -rf bin",
+    "build-lib" : "tsc-bundle ./src/index.ts ./bin/index.js",
+    "build-test": "tsc-bundle ./test/index.ts ./bin/test.js --removeComments",
+    "watch-test": "tsc-bundle ./test/index.ts ./bin/test.js --removeComments --watch"
+  },
+  "keywords": [
+    "neural",
+    "network",
+    "machine",
+    "learning"
+  ],
+  "author": "sinclairzx81",
+  "license": "MIT"
+}

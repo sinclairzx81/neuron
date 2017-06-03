@@ -1,10 +1,10 @@
 /*--------------------------------------------------------------------------
 
-neuron-ts - A multilayer perceptron network implemented in typescript.
+neuron - neural network written in javascript.
 
 The MIT License (MIT)
 
-Copyright (c) 2016 Haydn Paterson (sinclair) <haydn.developer@gmail.com>
+Copyright (c) 2017 Haydn Paterson (sinclair) <haydn.developer@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,122 +26,127 @@ THE SOFTWARE.
 
 ---------------------------------------------------------------------------*/
 
-import {Model} from "./model"
+import { Matrix } from "./matrix"
+import { Tensor } from "./tensor"
 
-export interface NetworkOptions {
-  /** the learning rate (etc), typical range [0.0 .. 1.0]. defaults to 0.15. */
-  rate     : number 
-  /** the momentum multiplier (alpha). typical range [0.0 .. n]. defaults to 0.5. */
-  momentum : number
+//----------------------------------------------------------------------------------------------//
+// network memory layout                                                                        //
+//----------------------------------------------------------------------------------------------//
+//                                                                                              //
+// matrices are encoded in linear form and can be structurally thought of as..                  //
+//                                                                                              //
+//   i = input tensor    (3 neuron + bias)                                                      //
+//   o = output tensor   (4 neuron + bias)                                                      //
+//   w = weight matrix                                                                          //
+//                                                                                              //
+//                     (bias)                                                                   //
+//                       |                                                                      //
+//   i[0 ] i[1 ] i[2 ] i[3 ]                                                                    //
+//     |     |     |     |                                                                      //
+//   w[0 ] w[1 ] w[2 ] w[3 ] --> o[0 ]                                                          //
+//   w[4 ] w[5 ] w[6 ] w[7 ] --> o[1 ]                                                          //
+//   w[8 ] w[9 ] w[10] w[11] --> o[2 ]                                                          //
+//   w[12] w[13] w[14] w[15] --> o[3 ]                                                          //
+//                               o[4 ] -- (bias)                                                //
+//                                                                                              //
+// thus the weight matrix connecting input and output is [inputs * (outputs - 1)] with bias     //
+// neuron encoded as the last element in the tensor.                                            //
+//                                                                                              //
+// if expressed as linear computation, the following would constitute a feed forward from       //
+// input to output.                                                                              //
+//                                                                                              //
+// o[0] = o.activate( (i[0 ] * w[0 ]) + (i[1 ] * w[1 ]) + (i[2 ] * w[2 ]) + (i[3 ] * w[3 ]) )   //
+// o[1] = o.activate( (i[0 ] * w[4 ]) + (i[1 ] * w[5 ]) + (i[2 ] * w[6 ]) + (i[3 ] * w[7 ]) )   //
+// o[2] = o.activate( (i[0 ] * w[8 ]) + (i[1 ] * w[9 ]) + (i[2 ] * w[10]) + (i[3 ] * w[11]) )   //
+// o[3] = o.activate( (i[0 ] * w[12]) + (i[1 ] * w[13]) + (i[2 ] * w[14]) + (i[3 ] * w[15]) )   //
+//                                                                                              //
+//----------------------------------------------------------------------------------------------//
+
+export interface Kernel {
+  input: Tensor,
+  output: Tensor,
+  matrix: Matrix
 }
-
-/**
- * Network:
- * A multi layer perceptron network. 
- */
 export class Network {
+  public matrices: Array<Matrix>
+  public kernels : Array<Kernel>
+  private output : Array<number>
 
-  //---------------------------------------------------------
-  // todo: generalize for f(x) where c is the learning rate.
-  // x = f(x)
-  // d = (f(x+c) - f(x)) / x  
-  //---------------------------------------------------------
-  public activations = {
-    "tanh": (x: number) => (Math.exp(x) - Math.exp(-x)) / (Math.exp(x) + Math.exp(-x)),
-  }
-  public derivitives = {
-    "tanh"   : (x: number) => (1 - (x * x)), // approximation needs fixing.
-  }
-  /** 
-   * creates a new network.
-   * @param {Model} the network model.
+  /**
+   * creates a new network with the given tensor layers.
+   * @param {Tensor[]} tensors the tensors for each layer in the network.
    * @returns {Network}
-  */
-  constructor(public model: Model, public options?: NetworkOptions) {
-    this.options = this.options || {
-      rate     : 0.15,
-      momentum : 0.5
+   */
+  constructor(public tensors: Tensor[]) {
+    // initialize output buffer.
+    this.output = new Array(this.tensors[this.tensors.length - 1].data.length - 1)
+    // initialize network matrices.
+    this.matrices = new Array<Matrix>(this.tensors.length - 1)
+    for (let i = 0; i < this.tensors.length - 1; i++) {
+      this.matrices[i] = new Matrix(
+        this.tensors[i + 0].data.length,
+        this.tensors[i + 1].data.length - 1
+      )
     }
-    this.model.layers().each(layer => {
-      layer.neurons().skip(1).each(neuron => {
-        neuron.outputs().each(synapse => {
-          synapse.weight((Math.random() - 0.5) * 2.0) 
-        })
-      })
-    })
+    // initialize network compute kernels.
+    this.kernels = new Array(this.matrices.length)
+    for (let i = 0; i < this.kernels.length; i++) {
+      this.kernels[i] = {
+        input : this.tensors[i + 0],
+        output: this.tensors[i + 1],
+        matrix: this.matrices[i]
+      }
+    }
+  }
+  /**
+   * returns the memory footprint of this network in bytes.
+   * @returns {number}
+   */
+  public memory(): number {
+    const tensors  = this.tensors.reduce((acc, t) => acc + (t.data.byteLength), 0)
+    const matrices = this.matrices.reduce((acc, m) => acc + (m.data.byteLength), 0)
+    return tensors + matrices
+  }
+  /**
+   * returns the number of inputs accepted by this network.
+   * @returns {number}
+   */
+  public inputs(): number {
+    return (this.tensors[0].data.length - 1)
   }
 
   /**
-   * forward propagates the given input through the network.
-   * @param {Array<number>} the input to this network.
-   * @returns {Array<number>} the networks output layer.
+   * returns the number of outputs from this network.
+   * @returns {number}
+   */
+  public outputs(): number {
+    return (this.tensors[this.tensors.length - 1].data.length - 1)
+  }
+
+  /**
+   * executes this network, propagating input to output.
+   * @param {Array<number>} input the input buffer to write to the network.
+   * @returns {Array<number>} the outputs for this network.
    */
   public forward(input: Array<number>): Array<number> {
-    this.model.layers()
-              .first()
-              .neurons()
-              .skip(1)
-              .each((neuron, index) => 
-                neuron.value(input[index]))
-    
-    this.model.layers().skip(1).each(hidden => {
-      let activate = this.activations[hidden.activation()]
-      hidden.neurons().each(neuron => {
-        let sum = neuron.inputs().aggregate((acc, synapse) => 
-            (acc + (synapse.weight() * synapse.target().value()))
-        , 0)
-        neuron.value( activate( sum ) )
-      })
-    })
-
-    return this.model.layers()
-      .last()
-      .neurons()
-      .skip(1)
-      .select(neuron => neuron.value())
-      .collect()
-  }
-
-  /**
-   * trains this network via back propagation / gradient descent.
-   * @param {Array<number>} the actual obtained from a call to forward()
-   * @param {Array<number>} the expected value.
-   * @returns {void}
-   */
-  public backward(actual: Array<number>, expected: Array<number>): void {
-    // optional - calculate error()
-    // let error = Math.sqrt(actual.reduce((acc, value, index) => {
-    //   let delta = (expected[index] - value)
-    //   return (acc + (delta * delta))
-    // }, 0) / actual.length)
-    
-    this.model.layers().last().neurons().skip(1).each((neuron, index) => {
-      let derive = this.derivitives[neuron.layer().activation()]
-      let delta  = expected[index] - neuron.value()
-      neuron.gradient(delta * derive(neuron.value()))
-    })
-
-    this.model.layers().skip(1).reverse().skip(1).each(layer => {
-      let derive = this.derivitives[layer.activation()]
-      layer.neurons().skip(1).each(neuron => {
-        let sum = neuron.outputs().aggregate((acc, synapse) => 
-          acc + (synapse.weight() * synapse.target().gradient())
-        , 0) 
-        neuron.gradient(sum * derive(neuron.value()))
-      })
-    })
-
-    this.model.layers().skip(1).reverse().each(layer => {
-      layer.neurons().skip(1).each(neuron => {
-        neuron.inputs().each(synapse => {
-          let olddelta = synapse.delta()
-          let newdelta = 
-              (this.options.rate * synapse.target().value() * neuron.gradient()) 
-            + (this.options.momentum * olddelta)
-          synapse.weight(synapse.weight() + newdelta)
-          synapse.delta(newdelta)
-        })
-      })
-    })
+    // load data from input.
+    for (let i = 0; i < input.length; i++) {
+      this.kernels[0].input.data[i] = input[i]
+    }
+    // feed forward values through the network.
+    for (let k = 0; k < this.kernels.length; k++) {
+      const kernel = this.kernels[k]
+      for (let o = 0; o < kernel.matrix.outputs; o++) {
+        let sum = 0
+        for (let i = 0; i < kernel.matrix.inputs; i++) {
+          sum += kernel.matrix.get(i, o) * kernel.input.data[i]
+        }
+        kernel.output.data[o] = kernel.output.activation.activate(sum)
+      }
+    }
+    // unload output layer return value.
+    for (let o = 0; o < this.output.length; o++) {
+      this.output[o] = this.kernels[this.kernels.length - 1].output.data[o]
+    } return this.output
   }
 }

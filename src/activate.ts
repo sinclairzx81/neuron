@@ -1,3 +1,5 @@
+/*--------------------------------------------------------------------------
+
 neuron - neural network written in javascript.
 
 The MIT License (MIT)
@@ -21,3 +23,20 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
+
+---------------------------------------------------------------------------*/
+
+export interface Activation {
+  activate: (x: number) => number,
+  derive  : (x: number) => number
+}
+
+export const identity:Activation = {
+  activate: x => x,
+  derive  : x => 1
+}
+
+export const tanh:Activation = {
+  activate: x => (Math.exp(x) - Math.exp(-x)) / (Math.exp(x) + Math.exp(-x)),
+  derive  : x => (1 - (x * x))
+}
