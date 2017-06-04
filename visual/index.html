@@ -1,0 +1,42 @@
+<html>
+  <head>
+    <script src="./script/index.js"></script>
+    <style>
+      *  {
+        font-family: Courier New, Courier, monospace;
+      }
+      #src-example {
+        float: left;
+      }
+      #dst-example {
+        float: left;
+        padding-left: 10px;
+      }
+      #info-example {
+        float: left;
+        padding-left: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div>
+        <h1>neuron - network debugger</h1>
+    </div>
+    <div id="src-example">
+      <h2>source image</h2>
+      <canvas id="src"></canvas>
+    </div>
+    <div id="dst-example">
+      <h2>trained image</h2>
+      <canvas id="dst"></canvas>
+    </div>
+    <div id="info-example">
+      <h2>stats</h2>
+      <div>
+      <h3>iteration: <span id="iteration">130</span></h3>
+      <h3>error: <span id="error">0.0012</span></h3>
+      </div>
+    </div>
+  </body>
+
+</html>
