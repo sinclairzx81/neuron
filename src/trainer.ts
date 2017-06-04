@@ -139,22 +139,20 @@ export class Trainer {
   /**
    * trains the network.
    * @param {Array<number>} input the network input.
-   * @param {Array<number>} expect the expected output.
-   * @returns {void}
+   * @param {Array<number>} expect the expect output.
+   * @returns {number} the network error for this sample.
    */
-  public backward(input: Array<number>, expect: Array<number>): void {
+  public backward(input: Array<number>, expect: Array<number>): number {
     // phase 0: execute the network, write to output layer.
-    this.network.forward(input)
-
+    const actual = this.network.forward(input)
     // phase 1: calculate output layer gradients.
     const kernel = this.kernels[this.kernels.length - 1]
     for (let o = 0; o < kernel.matrix.matrix.outputs; o++) {
       const delta = (expect[o] - kernel.output.tensor.data[o])
       kernel.output.grads[o] = (delta * kernel.output.tensor.activation.derive(kernel.output.tensor.data[o]))
     }
-
     // phase 2: calculate gradients on hidden layers.
-    for (let k = this.kernels.length - 1; k > 0; k--) {
+    for (let k = this.kernels.length - 1; k > -1; k--) {
       const kernel = this.kernels[k]
       for (let i = 0; i < kernel.matrix.matrix.inputs; i++) {
         let delta = 0
@@ -172,10 +170,19 @@ export class Trainer {
           const old_delta  = kernel.matrix.deltas.get(i, o)
           const new_delta  = (this.options.step * kernel.input.tensor.data[i] * kernel.output.grads[o]) + (this.options.momentum * old_delta)
           const new_weight = kernel.matrix.matrix.get(i, o) + new_delta
-          kernel.matrix.matrix.set(i, o, new_weight)
+          kernel.matrix.matrix.set (i, o, new_weight)
           kernel.matrix.deltas.set (i, o, new_delta)
         }
       }
     }
+    // phase 4: return the network error (before backprop)
+    // note: to avoid an additional feed forward to compute
+    // the error, we sample the 'actual' before backprop. This
+    // means the error value returned is one step out with the 
+    // training, this may not be acceptable. (for review)
+    return Math.sqrt(actual.reduce((acc, value, index) => {
+      let delta = (expect[index] - value)
+      return (acc + (delta * delta))
+    }, 0) / actual.length)
   }
 }

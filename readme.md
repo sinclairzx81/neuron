@@ -1,14 +1,14 @@
 ### neuron
 
-feed forward neural network implemented in javascript.
+neural network implemented in javascript.
 
 ### overview
 
-neuron is a javascript implementation of a feed forward, multi layer perceptron network. The library allows one to quickly create fully connected feed forward networks and iteratively train them to approximate some desired output.
+neuron is a javascript implementation of a multi layer perceptron network. The library allows one to quickly create fully connected feed forward networks and iteratively train them to approximate some desired output.
 
 neuron was written to allow for fast, interactive training in the browser for small networks. The library is offered as is for anyone who finds it useful, educational or just interesting.
 
-### building and running the xor test.
+### building the project
 ```
 npm install typescript -g
 npm install typescript-bundle -g
@@ -34,10 +34,10 @@ the following code sets up a network and iteratively trains it to approximate xo
 //
 //------------------------------------------------------
 const network = new neuron.Trainer(new neuron.Network([
-  new neuron.Tensor(2, 1.0),
-  new neuron.Tensor(5, 1.0, neuron.activate.tanh),
-  new neuron.Tensor(3, 1.0, neuron.activate.tanh),
-  new neuron.Tensor(1, 1.0, neuron.activate.tanh),
+  new neuron.Tensor(2),
+  new neuron.Tensor(5, "tanh"),
+  new neuron.Tensor(3, "tanh"),
+  new neuron.Tensor(1, "tanh"),
 ]))
 
 //------------------------------------------------------
@@ -46,15 +46,15 @@ const network = new neuron.Trainer(new neuron.Network([
 let iteration = 0
 while(iteration < 100000000) { // 100,000,000 iterations.
 
-  // train network against xor truth table.
-  network.backward([0, 0], [0])
-  network.backward([0, 1], [1])
-  network.backward([1, 0], [1])
-  network.backward([1, 1], [0])
+  // train network against xor truth table. store mean error.
+  const error = (network.backward([0, 0], [0]) +
+                 network.backward([0, 1], [1]) +
+                 network.backward([1, 0], [1]) +
+                 network.backward([1, 1], [0])) / 4
 
   // view approximation.
   if(iteration % 10000 === 0) {
-    console.log("-", iteration)
+    console.log("-", iteration, error)
     console.log(0, network.forward([0, 0]))
     console.log(1, network.forward([0, 1]))
     console.log(1, network.forward([1, 0]))
@@ -62,5 +62,4 @@ while(iteration < 100000000) { // 100,000,000 iterations.
   }
   iteration++
 }
-
 ```

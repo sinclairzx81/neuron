@@ -26,15 +26,11 @@ THE SOFTWARE.
 
 ---------------------------------------------------------------------------*/
 
-import * as activate from "./activate"
-import { Matrix }    from "./matrix"
 import { Network }   from "./network"
 import { Tensor }    from "./tensor"
 import { Trainer }   from "./trainer"
 
 export {
-  activate,
-  Matrix,
   Network,
   Tensor,
   Trainer
