@@ -103,7 +103,7 @@ ready(() => {
     // feed src image to network.
     //-----------------------------------------
     let error = 0
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 1; i++) {
       error = 0
       for (let y = 0; y < src.resY(); y++) {
         for (let x = 0; x < src.resX(); x++) {
